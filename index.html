@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>미니 축구 ⚽</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%; overflow: hidden;
+    background: #0d1b2a;
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; touch-action: none; }
+
+  .overlay {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px;
+    background: rgba(5, 12, 22, 0.9); color: #fff; text-align: center; z-index: 10; padding: 18px;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h1 { font-size: 28px; letter-spacing: 1px; }
+  .win { font-size: 24px; font-weight: 700; line-height: 1.5; }
+
+  .optblock { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .label { color: #8aa0b6; font-size: 14px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .opt {
+    padding: 10px 18px; border-radius: 30px; background: #16273a; color: #cdd8e4;
+    border: 2px solid #2a3f57; cursor: pointer; font-size: 15px; font-weight: 600;
+  }
+  .opt.sel { background: #ffd23f; color: #0d1b2a; border-color: #ffd23f; }
+
+  .btn {
+    padding: 13px 30px; font-size: 17px; font-weight: 700; color: #0d1b2a;
+    background: #ffd23f; border: none; border-radius: 40px; cursor: pointer;
+    box-shadow: 0 5px 0 #c9a31f; transition: transform .05s;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #c9a31f; }
+  .btn.ghost { background: transparent; color: #aab8c8; box-shadow: none; border: 2px solid #2a3f57; }
+  .btn.ghost:active { transform: translateY(2px); }
+
+  .teamGrid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px;
+    width: min(94vw, 450px); max-height: 56vh; overflow-y: auto; padding: 4px;
+  }
+  .teamCard {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 10px 3px; border-radius: 14px; background: #16273a;
+    border: 3px solid transparent; cursor: pointer;
+  }
+  .teamCard:active { transform: scale(0.95); }
+  .teamCard.disabled { opacity: 0.28; pointer-events: none; }
+  .teamCard .swatch { width: 28px; height: 28px; border-radius: 50%; }
+  .teamCard .flag { font-size: 20px; line-height: 1; }
+  .teamCard .nm { font-size: 12px; color: #cdd8e4; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game"></canvas></div>
+
+<!-- 1) 랜딩: 인원 + 골 수 -->
+<div id="startScreen" class="overlay">
+  <h1>⚽ 미니 축구</h1>
+  <div class="optblock">
+    <div class="label">인원</div>
+    <div class="row" id="modeRow">
+      <button class="opt sel" data-mode="2p">2인용</button>
+      <button class="opt" data-mode="1p">1인용 (vs 컴퓨터)</button>
+    </div>
+  </div>
+  <div class="optblock">
+    <div class="label">몇 골 승부?</div>
+    <div class="row" id="goalRow">
+      <button class="opt" data-goal="3">3골</button>
+      <button class="opt sel" data-goal="5">5골</button>
+      <button class="opt" data-goal="7">7골</button>
+    </div>
+  </div>
+  <button class="btn" id="toTeam">팀 선택 →</button>
+</div>
+
+<!-- 2) 팀 선택 -->
+<div id="teamScreen" class="overlay hidden">
+  <h1 id="teamPrompt">팀 선택</h1>
+  <div class="teamGrid" id="teamGrid"></div>
+  <button class="btn ghost" id="backToLanding">← 뒤로</button>
+</div>
+
+<!-- 3) 결과 -->
+<div id="endScreen" class="overlay hidden">
+  <div class="win" id="winText"></div>
+  <div class="row">
+    <button class="btn" id="rematch">같은 팀으로 다시</button>
+    <button class="btn ghost" id="home">처음으로</button>
+  </div>
+</div>
+
+<script>
+// ===== 월드컵 16강 팀 (대한민국 포함) =====
+const TEAMS = [
+  { name:'대한민국', flag:'🇰🇷', color:'#e63946', dark:'#a01b28' },
+  { name:'브라질',   flag:'🇧🇷', color:'#ffcf33', dark:'#1a8a4b' },
+  { name:'아르헨티나',flag:'🇦🇷', color:'#79c0ec', dark:'#2f6fa8' },
+  { name:'프랑스',   flag:'🇫🇷', color:'#2a4cc4', dark:'#16306b' },
+  { name:'독일',     flag:'🇩🇪', color:'#3a3a3a', dark:'#000000' },
+  { name:'스페인',   flag:'🇪🇸', color:'#d11149', dark:'#8a0a30' },
+  { name:'잉글랜드', flag:'🏴', color:'#e8edf3', dark:'#11224a' },
+  { name:'포르투갈', flag:'🇵🇹', color:'#15663a', dark:'#0c3d22' },
+  { name:'네덜란드', flag:'🇳🇱', color:'#ff7b1c', dark:'#c25600' },
+  { name:'일본',     flag:'🇯🇵', color:'#283593', dark:'#141d5e' },
+  { name:'이탈리아', flag:'🇮🇹', color:'#1f9e8f', dark:'#0f5e55' },
+  { name:'벨기에',   flag:'🇧🇪', color:'#f4b400', dark:'#8a6500' },
+  { name:'크로아티아',flag:'🇭🇷', color:'#c0392b', dark:'#7a2018' },
+  { name:'우루과이', flag:'🇺🇾', color:'#5aa9e6', dark:'#2c6fa6' },
+  { name:'멕시코',   flag:'🇲🇽', color:'#2e9e4f', dark:'#176b32' },
+  { name:'미국',     flag:'🇺🇸', color:'#5b2a86', dark:'#371a52' },
+];
+
+const config = { mode:'2p', winScore:5, team1:null, team2:null, picking:1 };
+
+// ===== 캔버스 / 좌표계 =====
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = 600, H = 1000;
+let scale = 1, offX = 0, offY = 0;
+
+function resize() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  scale = Math.min(vw / W, vh / H);
+  canvas.width = Math.round(W * scale);
+  canvas.height = Math.round(H * scale);
+  offX = (vw - canvas.width) / 2;
+  offY = (vh - canvas.height) / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const GOAL_W = 220;
+const GOAL_X1 = (W - GOAL_W) / 2, GOAL_X2 = (W + GOAL_W) / 2;
+
+const players = {
+  p1: { x: W/2, y: H*0.78, r: 46, color:'#4da3ff', dark:'#1f6fd6', vx:0, vy:0, px:W/2, py:H*0.78, touch:null, half:[H/2, H] },
+  p2: { x: W/2, y: H*0.22, r: 46, color:'#ff5a5a', dark:'#d62f2f', vx:0, vy:0, px:W/2, py:H*0.22, touch:null, half:[0, H/2] },
+};
+const ball = { x: W/2, y: H/2, vx: 0, vy: 0, r: 26 };
+
+// 경기장 곳곳을 랜덤하게 돌아다니는 수비수들 (팀별 색상)
+const DEF_R = 24, DEF_SPEED = 1.4, DEF_PER_TEAM = 3;
+const ROAM = { xMin: DEF_R + 10, xMax: W - DEF_R - 10, yMin: 160, yMax: H - 160 };
+const defenders = [];
+function makeDefenders() {
+  defenders.length = 0;
+  const t1 = config.team1 || { color:'#ff9a3d', dark:'#cc6f1a' };
+  const t2 = config.team2 || { color:'#ff9a3d', dark:'#cc6f1a' };
+  for (let i = 0; i < DEF_PER_TEAM * 2; i++) {
+    const team = i < DEF_PER_TEAM ? t1 : t2;
+    const a = Math.random() * Math.PI * 2;
+    defenders.push({
+      x: ROAM.xMin + Math.random() * (ROAM.xMax - ROAM.xMin),
+      y: ROAM.yMin + Math.random() * (ROAM.yMax - ROAM.yMin),
+      r: DEF_R, speed: DEF_SPEED, zone: ROAM,
+      vx: Math.cos(a) * DEF_SPEED, vy: Math.sin(a) * DEF_SPEED,
+      color: team.color, dark: team.dark,
+    });
+  }
+}
+makeDefenders();
+
+let score = { p1: 0, p2: 0 };
+let running = false;
+let goalFlash = 0;
+
+function resetPositions(servingTo) {
+  ball.x = W/2; ball.y = H/2;
+  ball.vx = 0; ball.vy = (servingTo === 'p1') ? 4 : (servingTo === 'p2') ? -4 : 0;
+  players.p1.x = players.p1.px = W/2; players.p1.y = players.p1.py = H*0.78;
+  players.p2.x = players.p2.px = W/2; players.p2.y = players.p2.py = H*0.22;
+  makeDefenders();
+}
+
+// ===== 화면 전환 =====
+function show(id) {
+  for (const s of ['startScreen','teamScreen','endScreen']) document.getElementById(s).classList.add('hidden');
+  if (id) document.getElementById(id).classList.remove('hidden');
+}
+
+document.getElementById('modeRow').addEventListener('click', e => {
+  const b = e.target.closest('[data-mode]'); if (!b) return;
+  config.mode = b.dataset.mode; setSel('modeRow', b);
+});
+document.getElementById('goalRow').addEventListener('click', e => {
+  const b = e.target.closest('[data-goal]'); if (!b) return;
+  config.winScore = +b.dataset.goal; setSel('goalRow', b);
+});
+function setSel(rowId, btn) {
+  for (const c of document.getElementById(rowId).children) c.classList.toggle('sel', c === btn);
+}
+document.getElementById('toTeam').onclick = showTeamSelect;
+document.getElementById('backToLanding').onclick = () => show('startScreen');
+document.getElementById('rematch').onclick = beginMatch;
+document.getElementById('home').onclick = () => show('startScreen');
+
+function showTeamSelect() {
+  config.team1 = null; config.team2 = null; config.picking = 1;
+  buildGrid(); updateTeamPrompt(); show('teamScreen');
+}
+function updateTeamPrompt() {
+  const el = document.getElementById('teamPrompt');
+  if (config.picking === 1) {
+    el.innerHTML = (config.mode === '1p' ? '내 팀을 선택하세요' : '플레이어 1 팀 선택');
+    el.style.color = '#4da3ff';
+  } else {
+    el.innerHTML = '플레이어 2 팀 선택';
+    el.style.color = '#ff5a5a';
+  }
+}
+function buildGrid() {
+  const g = document.getElementById('teamGrid'); g.innerHTML = '';
+  TEAMS.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'teamCard' + (config.team1 === t ? ' disabled' : '');
+    card.innerHTML =
+      `<div class="swatch" style="background:${t.color};border:2px solid ${t.dark}"></div>` +
+      `<div class="flag">${t.flag}</div><div class="nm">${t.name}</div>`;
+    card.onclick = () => pickTeam(t);
+    g.appendChild(card);
+  });
+}
+function pickTeam(t) {
+  if (config.picking === 1) {
+    config.team1 = t;
+    if (config.mode === '2p') { config.picking = 2; buildGrid(); updateTeamPrompt(); }
+    else {
+      const others = TEAMS.filter(x => x !== t);
+      config.team2 = others[Math.floor(Math.random() * others.length)];
+      beginMatch();
+    }
+  } else {
+    config.team2 = t; beginMatch();
+  }
+}
+function beginMatch() {
+  show(null);
+  players.p1.color = config.team1.color; players.p1.dark = config.team1.dark;
+  players.p2.color = config.team2.color; players.p2.dark = config.team2.dark;
+  score = { p1: 0, p2: 0 };
+  resetPositions(null);
+  running = true;
+}
+
+// ===== 입력 =====
+function toGame(clientX, clientY) {
+  return { x: (clientX - offX) / scale, y: (clientY - offY) / scale };
+}
+function clampHalf(p, y) {
+  return Math.max(p.half[0] + p.r, Math.min(p.half[1] - p.r, y));
+}
+function claimPlayer(p, gx, gy, id) {
+  if (gy >= p.half[0] && gy <= p.half[1]) {
+    p.touch = id; p.px = gx; p.py = clampHalf(p, gy); return true;
+  }
+  return false;
+}
+function handleStart(id, clientX, clientY) {
+  const g = toGame(clientX, clientY);
+  if (players.p1.touch === null && claimPlayer(players.p1, g.x, g.y, id)) return;
+  if (config.mode === '2p' && players.p2.touch === null && claimPlayer(players.p2, g.x, g.y, id)) return;
+}
+function handleMove(id, clientX, clientY) {
+  const g = toGame(clientX, clientY);
+  for (const key in players) {
+    const p = players[key];
+    if (p.touch === id) {
+      p.px = Math.max(p.r, Math.min(W - p.r, g.x));
+      p.py = clampHalf(p, g.y);
+    }
+  }
+}
+function handleEnd(id) {
+  for (const key in players) if (players[key].touch === id) players[key].touch = null;
+}
+
+canvas.addEventListener('touchstart', e => { e.preventDefault();
+  for (const t of e.changedTouches) handleStart(t.identifier, t.clientX, t.clientY); }, {passive:false});
+canvas.addEventListener('touchmove', e => { e.preventDefault();
+  for (const t of e.changedTouches) handleMove(t.identifier, t.clientX, t.clientY); }, {passive:false});
+canvas.addEventListener('touchend', e => { e.preventDefault();
+  for (const t of e.changedTouches) handleEnd(t.identifier); }, {passive:false});
+canvas.addEventListener('touchcancel', e => {
+  for (const t of e.changedTouches) handleEnd(t.identifier); }, {passive:false});
+
+let mouseDown = false;
+canvas.addEventListener('mousedown', e => { mouseDown = true; handleStart('mouse', e.clientX, e.clientY); });
+canvas.addEventListener('mousemove', e => { if (mouseDown) handleMove('mouse', e.clientX, e.clientY); });
+window.addEventListener('mouseup', () => { mouseDown = false; handleEnd('mouse'); });
+
+// ===== 컴퓨터(AI) =====
+function aiControl(p) {
+  let tx, ty;
+  if (ball.y < H * 0.58) { tx = ball.x; ty = ball.y; }   // 자기 진영에 공이 오면 쫓아감
+  else { tx = W/2; ty = H*0.22; }                         // 아니면 골문 앞 대기
+  const step = 5.5;                                       // 반응 속도 제한 → 적당히 이길 수 있게
+  p.px += Math.max(-step, Math.min(step, tx - p.px));
+  p.py = clampHalf(p, p.py + Math.max(-step, Math.min(step, ty - p.py)));
+  p.px = Math.max(p.r, Math.min(W - p.r, p.px));
+}
+
+// ===== 물리 =====
+function updatePlayer(p) {
+  const nx = p.x + (p.px - p.x) * 0.4;
+  const ny = p.y + (p.py - p.y) * 0.4;
+  p.vx = nx - p.x; p.vy = ny - p.y;
+  p.x = nx; p.y = ny;
+}
+function collideCircle(c) {
+  const dx = ball.x - c.x, dy = ball.y - c.y;
+  const dist = Math.hypot(dx, dy);
+  const min = c.r + ball.r;
+  if (dist < min && dist > 0) {
+    const nx = dx / dist, ny = dy / dist;
+    ball.x = c.x + nx * min; ball.y = c.y + ny * min;
+    const speed = Math.hypot(ball.vx, ball.vy);
+    ball.vx = nx * (speed * 0.5 + 5) + (c.vx || 0) * 1.5;
+    ball.vy = ny * (speed * 0.5 + 5) + (c.vy || 0) * 1.5;
+  }
+}
+function updateDefender(d) {
+  if (Math.random() < 0.03) {
+    const a = Math.random() * Math.PI * 2;
+    d.vx += Math.cos(a) * 0.6; d.vy += Math.sin(a) * 0.6;
+  }
+  const sp = Math.hypot(d.vx, d.vy) || 1;
+  d.vx = d.vx / sp * d.speed; d.vy = d.vy / sp * d.speed;
+  d.x += d.vx; d.y += d.vy;
+  const z = d.zone;
+  if (d.x < z.xMin) { d.x = z.xMin; d.vx = Math.abs(d.vx); }
+  if (d.x > z.xMax) { d.x = z.xMax; d.vx = -Math.abs(d.vx); }
+  if (d.y < z.yMin) { d.y = z.yMin; d.vy = Math.abs(d.vy); }
+  if (d.y > z.yMax) { d.y = z.yMax; d.vy = -Math.abs(d.vy); }
+}
+
+function update() {
+  if (!running) return;
+  if (config.mode === '1p') aiControl(players.p2);
+  updatePlayer(players.p1);
+  updatePlayer(players.p2);
+  defenders.forEach(updateDefender);
+
+  ball.x += ball.vx; ball.y += ball.vy;
+  ball.vx *= 0.992; ball.vy *= 0.992;
+  const sp = Math.hypot(ball.vx, ball.vy);
+  if (sp > 26) { ball.vx *= 26/sp; ball.vy *= 26/sp; }
+
+  if (ball.x < ball.r) { ball.x = ball.r; ball.vx = Math.abs(ball.vx) * 0.8; }
+  if (ball.x > W - ball.r) { ball.x = W - ball.r; ball.vx = -Math.abs(ball.vx) * 0.8; }
+  if (ball.y < ball.r) {
+    if (ball.x > GOAL_X1 && ball.x < GOAL_X2) { goal('p1'); return; }
+    ball.y = ball.r; ball.vy = Math.abs(ball.vy) * 0.8;
+  }
+  if (ball.y > H - ball.r) {
+    if (ball.x > GOAL_X1 && ball.x < GOAL_X2) { goal('p2'); return; }
+    ball.y = H - ball.r; ball.vy = -Math.abs(ball.vy) * 0.8;
+  }
+
+  collideCircle(players.p1);
+  collideCircle(players.p2);
+  defenders.forEach(collideCircle);
+}
+
+function goal(scorer) {
+  score[scorer]++;
+  goalFlash = 30;
+  if (score[scorer] >= config.winScore) {
+    running = false;
+    const team = scorer === 'p1' ? config.team1 : config.team2;
+    document.getElementById('winText').innerHTML =
+      `🏆 ${team.flag} <span style="color:${team.color}">${team.name}</span> 승리!<br>
+       <span style="font-size:18px;color:#aab8c8">${score.p1} : ${score.p2}</span>`;
+    show('endScreen');
+    return;
+  }
+  resetPositions(scorer === 'p1' ? 'p2' : 'p1');
+}
+
+// ===== 그리기 =====
+function drawField() {
+  ctx.fillStyle = '#1d7a3e'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  for (let i = 0; i < H; i += 100) ctx.fillRect(0, i, W, 50);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 4;
+  ctx.strokeRect(8, 8, W-16, H-16);
+  ctx.beginPath(); ctx.moveTo(8, H/2); ctx.lineTo(W-8, H/2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, 90, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2, H/2, 6, 0, Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.fill();
+
+  ctx.lineWidth = 6; ctx.strokeStyle = '#ffd23f';
+  ctx.beginPath(); ctx.moveTo(GOAL_X1, 8); ctx.lineTo(GOAL_X2, 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(GOAL_X1, H-8); ctx.lineTo(GOAL_X2, H-8); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 3;
+  ctx.strokeRect(GOAL_X1-50, 8, GOAL_W+100, 130);
+  ctx.strokeRect(GOAL_X1-50, H-138, GOAL_W+100, 130);
+}
+function drawDefender(d) {
+  ctx.beginPath(); ctx.arc(d.x, d.y+4, d.r, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+  ctx.fillStyle = d.color; ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = d.dark; ctx.stroke();
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  const s = d.r*0.4;
+  ctx.beginPath();
+  ctx.moveTo(d.x-s, d.y-s); ctx.lineTo(d.x+s, d.y+s);
+  ctx.moveTo(d.x+s, d.y-s); ctx.lineTo(d.x-s, d.y+s);
+  ctx.stroke();
+}
+function drawPlayer(p) {
+  ctx.beginPath(); ctx.arc(p.x, p.y+4, p.r, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+  ctx.fillStyle = p.color; ctx.fill();
+  ctx.lineWidth = 6; ctx.strokeStyle = p.dark; ctx.stroke();
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r*0.45, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
+}
+function drawBall() {
+  ctx.beginPath(); ctx.arc(ball.x, ball.y+3, ball.r, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+  ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#222'; ctx.stroke();
+  ctx.fillStyle = '#222';
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r*0.32, 0, Math.PI*2); ctx.fill();
+}
+function drawScore() {
+  if (!config.team1 || !config.team2) return;
+  ctx.textAlign = 'center';
+  // 위쪽 = team2 (뒤집어서 표시)
+  ctx.save(); ctx.translate(W/2, H/2 - 30); ctx.rotate(Math.PI);
+  ctx.font = 'bold 24px sans-serif'; ctx.fillStyle = config.team2.color;
+  ctx.fillText(config.team2.flag + ' ' + config.team2.name, 0, -36);
+  ctx.font = 'bold 54px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillText(score.p2, 0, 6);
+  ctx.restore();
+  // 아래쪽 = team1
+  ctx.font = 'bold 24px sans-serif'; ctx.fillStyle = config.team1.color;
+  ctx.fillText(config.team1.flag + ' ' + config.team1.name, W/2, H/2 + 30);
+  ctx.font = 'bold 54px sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillText(score.p1, W/2, H/2 + 84);
+}
+
+function draw() {
+  ctx.save(); ctx.scale(scale, scale);
+  drawField();
+  drawScore();
+  defenders.forEach(drawDefender);
+  drawBall();
+  drawPlayer(players.p1);
+  drawPlayer(players.p2);
+  if (goalFlash > 0) {
+    ctx.fillStyle = `rgba(255,255,255,${goalFlash/60})`;
+    ctx.fillRect(0,0,W,H); goalFlash--;
+  }
+  ctx.restore();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>
