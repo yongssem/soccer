@@ -27,7 +27,7 @@ npm start
 
 기존 정적 호스팅에 다음 파일을 같은 경로에 배포하세요. GitHub Pages의 하위 경로도 지원하는 상대 경로를 사용합니다.
 
-`index.html`, `styles.css`, `tokens.css`, `game.js`, `icon.svg`, `icon-192.png`, `icon-512.png`, `manifest.webmanifest`
+`index.html`, `styles.css`, `tokens.css`, `game.js`, `icon.svg`, `icon-192.png`, `icon-512.png`, `manifest.webmanifest`, `assets/`
 
 서버 API, 데이터베이스, API 키, 빌드 단계는 필요하지 않습니다. 공유·클립보드·전체화면·설치 기능은 브라우저 지원 여부와 권한에 따라 안내로 대체됩니다. 홈 화면 추가는 HTTPS로 호스팅한 뒤 확인해야 합니다. 서비스워커를 두지 않아 오프라인 캐시를 제공하지 않습니다.
 

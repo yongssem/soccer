@@ -675,3 +675,12 @@ canvas {
     letter-spacing:1px  }
 }
 
+/* Generated stadium illustration; image stays visible on phones. */
+.stadium { margin:0; }
+.hero-art { display:block; width:100%; height:auto; aspect-ratio:4/5; object-fit:cover; border-radius:10px; }
+@media(max-width:600px) {
+  .stadium { display:block; grid-row:1; padding:0; border:0; background:transparent; }
+  .stadium-top,.stadium .stadium-ticket { display:none; }
+  .hero-art { height:164px; aspect-ratio:auto; object-position:50% 58%; border-radius:14px; }
+  .lobby { gap:24px; }
+}

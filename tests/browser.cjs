@@ -18,6 +18,8 @@ if(out)fs.mkdirSync(out,{recursive:true});
   };
   for(const [width,height]of[[320,740],[375,812],[414,896],[768,1024],[1280,800],[844,390]]){
    await page.setViewportSize({width,height});await page.goto(base);await checkLayout(`lobby ${width}`);
+   await page.locator('.hero-art').evaluate(img=>img.decode());
+   assert.ok(await page.locator('.hero-art').evaluate(img=>img.naturalWidth>0 && img.getBoundingClientRect().height>0),'landing image loads and is visible');
    if(width===1280){const b=await page.locator('#toTeam').boundingBox();assert.ok(b.y+b.height<=height,'primary action fits laptop viewport');}
    await page.click('#toTeam');assert.equal(await page.locator('.teamCard').count(),16);await checkLayout(`teams ${width}`);
    await page.getByRole('button',{name:'대한민국 선택',exact:true}).click();await checkLayout(`match ${width}`);
