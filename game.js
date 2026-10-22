@@ -334,7 +334,7 @@ function drawField() {
   ctx.lineWidth = 1; ctx.strokeStyle = palette.line;
   for (let x = GOAL_X1; x <= GOAL_X2; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,30); ctx.moveTo(x,H); ctx.lineTo(x,H-30); ctx.stroke(); }
   ctx.save(); ctx.globalAlpha = .4; ctx.textAlign='center'; ctx.font='bold 20px sans-serif'; ctx.fillStyle=palette.white;
-  ctx.fillText('MINI MATCH', W/2, H/2-120); ctx.restore();
+  ctx.fillText('무무월드컵', W/2, H/2-120); ctx.restore();
 }
 function drawDefender(d) {
   ctx.beginPath(); ctx.arc(d.x, d.y+4, d.r, 0, Math.PI*2);
@@ -473,7 +473,7 @@ function status(message) { $('status').textContent=message; $('status').classLis
 $('share').onclick = async () => {
   if (location.protocol === 'file:') { status('게임을 웹에 게시한 뒤 링크를 공유할 수 있어요.'); return; }
   const url = new URL('.', location.href).href;
-  try { if (navigator.share) { await navigator.share({title:'미니 축구 | MINI MATCH',text:'작은 경기장, 큰 승부. 한 판 할까요?',url}); return; } } catch(e) { if(e.name==='AbortError') return; }
+  try { if (navigator.share) { await navigator.share({title:'무무월드컵',text:'작은 경기장, 큰 승부. 한 판 할까요?',url}); return; } } catch(e) { if(e.name==='AbortError') return; }
   try { await navigator.clipboard.writeText(url); status('게임 링크를 복사했어요. 친구에게 보내보세요.'); }
   catch { status(`주소창의 게임 주소를 복사해 공유해주세요.`); }
 };
