@@ -1,0 +1,7 @@
+# Landing illustration
+
+Generated with the built-in image generation tool on 2026-10-22. Original image is preserved outside the deployment. WebP delivery assets are 960×1200 (201,196 bytes) and 480×600 (52,006 bytes). They are selected by a responsive image `srcset`; no text is baked into the artwork.
+
+## Final generation prompt
+
+Use case: stylized-concept. Asset type: production landing hero illustration for MINI MATCH, a Korean browser mini football game. Create a premium tactile 3D miniature football stadium diorama, portrait 4:5 composition. An entire small dark emerald green football pitch seen in dramatic isometric perspective, fine cream field markings, tiny goal nets at both ends, a few round red and sky-blue numbered playing pieces, and one recognizable black-and-ivory football in the foreground. The pieces resemble tabletop football pucks, not human athletes. Pitch floats on a thick beveled dark forest-green platform. Studio charcoal-green backdrop #101612, elegant lime #d1f566 edge accents and warm stadium floodlighting. Carefully composed, high-end art directed toy photography, tactile felt turf and matte ceramic pieces, subtle realistic contact shadows, crisp premium detail, playful but restrained. Fill the frame with the stadium while leaving breathing room around its silhouette. No text, no letters, no logos, no UI, no watermarks, no browser frame. This is an original game illustration, not a screenshot.

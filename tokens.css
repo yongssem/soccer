@@ -1,0 +1,27 @@
+/* Hallmark · macrostructure: Matchday Workbench · tone: athletic · anchor hue: lime */
+:root {
+  color-scheme: dark;
+  --color-paper: #101612; --color-paper-2: #19221c; --color-paper-3: #222d25;
+  --color-ink: #f3f5ec; --color-ink-2: #b0bdaf; --color-muted: #849580;
+  --color-rule: #354136; --color-accent: #d1f566; --color-accent-ink: #19230a;
+  --color-focus: #d1f566; --color-error: #ff9a8e;
+  --font-display: 'Arial Black', 'Malgun Gothic', sans-serif;
+  --font-body: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-mono: Consolas, monospace;
+  --space-xs: .5rem; --space-sm: 1rem; --space-md: 1.5rem; --space-lg: 2rem; --space-xl: 3rem; --space-2xl: 4.5rem;
+  --text-xs: .75rem; --text-sm: .875rem; --text-md: 1rem; --text-lg: 1.25rem;
+  --ease-out: cubic-bezier(.16,1,.3,1); --ease-in: cubic-bezier(.7,0,.84,0); --ease-in-out: cubic-bezier(.65,0,.35,1);
+  --dur-short: 180ms; --radius-card: 20px; --radius-input: 10px; --radius-pill: 999px;
+  --color-turf-preview: #294d36;
+  --color-stripe-preview: #2d523a;
+  --color-pitch-border: #809a79;
+  --color-pitch-line: #8aa384;
+  --color-net: #81927b;
+  --color-net-line: #a3b29a;
+  --color-jersey-outline: #ffffffc4;
+  --color-player-shadow: #0004;
+  --color-jersey-ink: #fff;
+  --color-away-player: #e15c50;
+  --color-home-player: #6b9bcc;
+  --color-overlay: #0b120de8;
+}
